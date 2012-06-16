@@ -1,7 +1,5 @@
 -module(espec_tests).
 
--include_lib("eunit/include/eunit.hrl").
-
 -compile({parse_transform, espec_parse_transform}).
 
 -export([setup/0,
@@ -9,28 +7,29 @@
         setup_each/1,
         cleanup_each/2]).
 
--export([should_do_stuff/0,
-        should_do_other_stuff/0]).
+-include_lib("eunit/include/eunit.hrl").
 
 espec_test_() ->
     espec:init(?MODULE).
 
 setup() ->
-    ?debugMsg("setup").
+    foo.
 
-cleanup(_) ->
-    ?debugMsg("cleanup").
+cleanup(foo) ->
+    ok.
 
-setup_each(_) ->
-    ?debugMsg("setup_each").
+setup_each(foo) ->
+    bar.
 
-cleanup_each(_, _) ->
-    ?debugMsg("cleanup_each").
+cleanup_each(foo, bar) ->
+    ok.
 
--espec {timeout, 100}.
-should_do_stuff() -> ok.
+should_receive_bar(bar) ->
+    ok.
 
--espec {timeout, 10}.
--espec {foo, bar}.
--espec [{a, b}, {d, e}].
-should_do_other_stuff() -> ok.
+should_receive_foo_and_bar(foo, bar) ->
+    ok.
+
+%-espec {timeout, 1}.
+%should_timeout() -> 
+%    timer:sleep(2000).

@@ -1,0 +1,12 @@
+{application, espec,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { myapp_app, []}},
+  {env, []}
+ ]}.

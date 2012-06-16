@@ -1,13 +1,12 @@
 -module(espec_tests).
 
--compile({parse_transform, espec_parse_transform}).
-
 -export([setup/0,
         cleanup/1,
         setup_each/1,
         cleanup_each/2]).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("espec.hrl").
 
 espec_test_() ->
     espec:init(?MODULE).
@@ -29,6 +28,9 @@ should_receive_bar(bar) ->
 
 should_receive_foo_and_bar(foo, bar) ->
     ok.
+
+%should_fail() ->
+%    ?assert(false).
 
 %-espec {timeout, 1}.
 %should_timeout() -> 

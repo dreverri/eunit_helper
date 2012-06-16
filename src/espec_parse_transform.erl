@@ -36,10 +36,16 @@ walk_ast([Other|Rest], State) ->
     walk_ast(Rest, State#state{acc=[Other|State#state.acc]}).
 
 merge_opts(Value, Espec) when is_list(Value) ->
-    Value ++ Espec;
+    [expand_value(V) || V <- Value] ++ Espec;
 
 merge_opts(Value, Espec) ->
-    [Value|Espec].
+    [expand_value(Value)|Espec].
+
+expand_value(V) when is_tuple(V) andalso size(V) =:= 2 ->
+    V;
+
+expand_value(V) ->
+    {V, true}.
 
 espec(State) ->
     {attribute, 0, espec, State#state.funs}.

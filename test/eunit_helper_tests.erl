@@ -1,7 +1,7 @@
--module(espec_tests).
+-module(eunit_helper_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include("espec.hrl").
+-include("eunit_helper.hrl").
 
 setup() ->
     foo.
@@ -21,17 +21,17 @@ should_receive_bar(bar) ->
 should_receive_foo_and_bar(foo, bar) ->
     ok.
 
--espec focus.
+-eunit_helper focus.
 should_focus_when_filtered() ->
     ok.
 
--espec ignore.
+-eunit_helper ignore.
 should_be_ignored_when_filtered() ->
     ok.
 
 %should_fail() ->
 %    ?assert(false).
 
-%-espec {timeout, 1}.
+%-eunit_helper {timeout, 1}.
 %should_timeout() -> 
 %    timer:sleep(2000).

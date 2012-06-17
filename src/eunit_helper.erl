@@ -1,4 +1,4 @@
--module(espec).
+-module(eunit_helper).
 
 -export([init/1]).
 
@@ -33,7 +33,7 @@ cleanup_each(Module, X, R) ->
 
 tests(Module, X) ->
     Attributes = Module:module_info(attributes),
-    Specs = proplists:get_value(espec, Attributes),
+    Specs = proplists:get_value(eunit_helper, Attributes),
     convert_specs(Specs, #state{module=Module, context=X}).
 
 convert_specs([Spec|Rest], State) ->

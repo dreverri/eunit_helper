@@ -1,4 +1,4 @@
-{application, espec,
+{application, eunit_helper,
  [
   {description, ""},
   {vsn, "1"},

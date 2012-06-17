@@ -5,6 +5,9 @@
 -export([setup/1, cleanup/2, setup_each/2, cleanup_each/3, tests/2]).
 
 -record(state, {module, context, tests=[]}).
+-record(filter, {any=[], all=[], none=[]}).
+
+-define(TRY(M,F,A,D), try apply(M, F, A) catch error:undef -> D end).
 
 init(Module) ->
     {setup,
@@ -19,16 +22,16 @@ init(Module) ->
         end}.
 
 setup(Module) ->
-    catch_undef(Module, setup, [], ok).
+    ?TRY(Module, setup, [], ok).
 
 cleanup(Module, X) ->
-    catch_undef(Module, cleanup, [X], X).
+    ?TRY(Module, cleanup, [X], X).
 
 setup_each(Module, X) ->
-    catch_undef(Module, setup_each, [X], X).
+    ?TRY(Module, setup_each, [X], X).
 
 cleanup_each(Module, X, R) ->
-    catch_undef(Module, cleanup_each, [X, R], R).
+    ?TRY(Module, cleanup_each, [X, R], R).
 
 tests(Module, X) ->
     Attributes = Module:module_info(attributes),
@@ -43,7 +46,7 @@ convert_specs([], State) ->
     State#state.tests.
 
 convert_spec({{F,A}, Opts}, State) ->
-    case matches_filters(Opts) of
+    case should_run(Opts) of
         false ->
             State;
         true ->
@@ -52,15 +55,31 @@ convert_spec({{F,A}, Opts}, State) ->
             State#state{tests=[Test|State#state.tests]}
     end.
 
-matches_filters(Opts) ->
-    {Match, Ignore} = filters(),
-    match_all(Match, Opts) andalso not match_any(Ignore, Opts).
+should_run(Opts) ->
+    should_run(Opts, filter()).
 
-match_all(Match, Opts) ->
-    lists:all(fun(M) -> is_tagged(M,Opts) end, Match).
+should_run(Opts, Filter) ->
+    match_all(Filter#filter.all, Opts) andalso
+    match_any(Filter#filter.all ++ Filter#filter.any, Opts, true) andalso
+    not match_any(Filter#filter.none, Opts).
 
-match_any(Ignore, Opts) ->
-    lists:any(fun(I) -> is_tagged(I,Opts) end, Ignore).
+match_all(List, Opts) ->
+    match_all(List, Opts, true).
+
+match_all([], _, Empty) ->
+    Empty;
+
+match_all(List, Opts, _) ->
+    lists:all(fun(E) -> is_tagged(E,Opts) end, List).
+
+match_any(List, Opts) ->
+    match_any(List, Opts, false).
+
+match_any([], _, Empty) ->
+    Empty;
+
+match_any(List, Opts, _) ->
+    lists:any(fun(E) -> is_tagged(E,Opts) end, List).
 
 is_tagged(Filter, Opts) ->
     proplists:get_value(Filter, Opts) =/= undefined.
@@ -82,67 +101,62 @@ t(M, F, A, Opts) ->
             Test
     end.
 
-catch_undef(M, F, A, Default) ->
-    try apply(M, F, A) catch error:undef -> Default end.
-
-filters() ->
-    case application:get_env(espec, filters) of
-        undefined ->
-            Filters = get_filters(),
-            ok = application:set_env(espec, filters, Filters),
-            Filters;
-        {ok, V} ->
-            V
-    end.
-
-get_filters() ->
+filter() ->
     case os:getenv("filter") of
         false ->
-            {[], []};
+            #filter{};
         FilterString ->
             parse_filter_string(FilterString)
     end.
 
 parse_filter_string(FilterString) ->
-    Filters = string:tokens(FilterString, " "),
-    lists:foldl(fun(F,{Match, Ignore}) ->
-                case lists:prefix("-", F) of
-                    true ->
-                        {Match, [lists:nthtail(1,F)|Ignore]};
-                    false ->
-                        {[F|Match], Ignore}
+    Tokens = string:tokens(FilterString, " "),
+    lists:foldl(fun(T, Filter) ->
+                case T of
+                    "-" ++ T1 ->
+                        None = [list_to_atom(T1)|Filter#filter.none],
+                        Filter#filter{none=None};
+                    "+" ++ T1 ->
+                        All = [list_to_atom(T1)|Filter#filter.all],
+                        Filter#filter{all=All};
+                    _ ->
+                        Any = [list_to_atom(T)|Filter#filter.any],
+                        Filter#filter{any=Any}
                 end
-        end, {[],[]}, Filters).
+        end, #filter{}, Tokens).
 
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+-define(FOCUS_OPTS, [{focus,true}]).
+-define(SLOW_OPTS, [{slow,true}]).
+-define(FOCUS_SLOW_OPTS, [{focus,true},{slow,true}]).
+-define(FOCUS, #filter{all=[focus]}).
+-define(FOCUS_ANY, #filter{any=[focus]}).
+-define(NOT_SLOW, #filter{none=[slow]}).
+-define(FOCUS_OR_SLOW, #filter{any=[focus,slow]}).
+-define(FOCUS_AND_SLOW, #filter{all=[focus,slow]}).
 
--define(OPTS, [{"focus",true},{"ignore",true}]).
+parse_filter_string_test() ->
+    ?assertEqual(#filter{}, parse_filter_string("")),
+    ?assertEqual(?FOCUS, parse_filter_string("+focus")),
+    ?assertEqual(?FOCUS_ANY, parse_filter_string("focus")),
+    ?assertEqual(?NOT_SLOW, parse_filter_string("-slow")),
+    ?assertEqual(?FOCUS_OR_SLOW, parse_filter_string("slow focus")),
+    ?assertEqual(?FOCUS_AND_SLOW, parse_filter_string("+slow +focus")).
 
-parse_empty_filter_string_test() ->
-    {[],[]} = parse_filter_string("").
-
-parse_matched_filter_string_test() ->
-    {["focus"], []} = parse_filter_string("focus").
-
-parse_ignore_filter_string_test() ->
-    {[], ["focus"]} = parse_filter_string("-focus").
-
-matches_filter_test() ->
-    application:set_env(espec, filters, {["focus"], []}),
-    ?assert(matches_filters(?OPTS)).
-
-does_not_match_filter_test() ->
-    application:set_env(espec, filters, {["focus"], []}),
-    ?assertNot(matches_filters([])).
-
-ignore_filter_test() ->
-    application:set_env(espec, filters, {[], ["ignore"]}),
-    ?assertNot(matches_filters(?OPTS)).
-
-do_not_ignore_filter_test() ->
-    application:set_env(espec, filters, {[], ["ignore"]}),
-    ?assert(matches_filters([])).
+should_run_test() ->
+    ?assert(should_run(?FOCUS_OPTS, ?FOCUS)),
+    ?assert(should_run(?FOCUS_OPTS, ?NOT_SLOW)),
+    ?assert(should_run(?FOCUS_OPTS, ?FOCUS_OR_SLOW)),
+    ?assertNot(should_run(?FOCUS_OPTS, ?FOCUS_AND_SLOW)),
+    ?assertNot(should_run(?SLOW_OPTS, ?FOCUS)),
+    ?assertNot(should_run(?SLOW_OPTS, ?NOT_SLOW)),
+    ?assert(should_run(?SLOW_OPTS, ?FOCUS_OR_SLOW)),
+    ?assertNot(should_run(?SLOW_OPTS, ?FOCUS_AND_SLOW)),
+    ?assert(should_run(?FOCUS_SLOW_OPTS, ?FOCUS)),
+    ?assertNot(should_run(?FOCUS_SLOW_OPTS, ?NOT_SLOW)),
+    ?assert(should_run(?FOCUS_SLOW_OPTS, ?FOCUS_OR_SLOW)),
+    ?assert(should_run(?FOCUS_SLOW_OPTS, ?FOCUS_AND_SLOW)).
 
 -endif.

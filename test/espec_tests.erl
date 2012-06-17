@@ -1,15 +1,7 @@
 -module(espec_tests).
 
--export([setup/0,
-        cleanup/1,
-        setup_each/1,
-        cleanup_each/2]).
-
 -include_lib("eunit/include/eunit.hrl").
 -include("espec.hrl").
-
-espec_test_() ->
-    espec:init(?MODULE).
 
 setup() ->
     foo.
@@ -27,6 +19,14 @@ should_receive_bar(bar) ->
     ok.
 
 should_receive_foo_and_bar(foo, bar) ->
+    ok.
+
+-espec focus.
+should_focus_when_filtered() ->
+    ok.
+
+-espec ignore.
+should_be_ignored_when_filtered() ->
     ok.
 
 %should_fail() ->

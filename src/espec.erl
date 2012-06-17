@@ -2,8 +2,6 @@
 
 -export([init/1]).
 
--export([setup/1, cleanup/2, setup_each/2, cleanup_each/3, tests/2]).
-
 -record(state, {module, context, tests=[]}).
 -record(filter, {any=[], all=[], none=[]}).
 
@@ -124,7 +122,6 @@ parse_filter_string(FilterString) ->
                         Filter#filter{any=Any}
                 end
         end, #filter{}, Tokens).
-
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
